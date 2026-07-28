@@ -1,0 +1,427 @@
+{
+  "name": "Engineering DORB Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -736,
+        160
+      ],
+      "id": "c324db6c-1f03-46e2-8813-b627b2d099c1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        -112
+      ],
+      "id": "5672de05-7b52-491f-9d50-d8b94dc88846",
+      "name": "Wait",
+      "webhookId": "9de1339b-212c-406a-ae40-48828b5a67f2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "14MxY2Z5p1kLK-5_W-vLjxwC5qHeojp60loAapnr6-IU",
+          "mode": "list",
+          "cachedResultName": "Engineering DOR",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14MxY2Z5p1kLK-5_W-vLjxwC5qHeojp60loAapnr6-IU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14MxY2Z5p1kLK-5_W-vLjxwC5qHeojp60loAapnr6-IU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -448,
+        160
+      ],
+      "id": "a1fe7cb7-507e-432e-8feb-4006a465738b",
+      "name": "Fetch Active Tasks",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6cplH34JzP44zqIe",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "966eff77-a1ee-4a84-af9c-d5f311350bf0",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "=Open",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -160,
+        160
+      ],
+      "id": "1641462c-0e3d-4864-a048-97bb669a87c6",
+      "name": "Filter Open Actions"
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nconst webHookBaseUrl = \"https://your-n8n-instance.com/webhook/task-update\"; // Replace with your webhook URL\n\nreturn $input.all().map(item => {\n  const row = item.json;\n  const deadline = new Date(row.Deadline);\n  deadline.setHours(0, 0, 0, 0);\n  \n  const diffTime = deadline - today;\n  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n  \n  let daysText = \"\";\n  if (diffDays < 0) {\n    daysText = `⚠️ OVERDUE by ${Math.abs(diffDays)} day(s)`;\n  } else if (diffDays === 0) {\n    daysText = \"⏳ Due Today!\";\n  } else {\n    daysText = `🗓️ ${diffDays} day(s) remaining`;\n  }\n\n  const updateLink = `${webHookBaseUrl}?taskId=${encodeURIComponent(row['Task ID'])}`;\n\n  return {\n    json: {\n      taskId: row['Task ID'],\n      task: row.Task,\n      category: row.Category || 'Daily Action Plan',\n      owner: row.Owner,\n      email: row.Email,\n      whatsapp: row.WhatsApp,\n      deadline: row.Deadline,\n      status: row.Status,\n      diffDays: diffDays,\n      daysText: daysText,\n      updateLink: updateLink\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -112
+      ],
+      "id": "230bb60a-9a0e-4b1a-9218-43d80c95ed37",
+      "name": "Group Tasks by Engineer"
+    },
+    {
+      "parameters": {
+        "toRecipients": "={{ $('Fetch Active Tasks').item.json.Email }}",
+        "subject": "Engineering Action Item Reminder",
+        "bodyContent": "=Dear {{ $json.owner }},\n\nYour Engineering action item from today's operational review:\n\n{{ $json.task }}\nDeadline: {{ $json.deadline }}\nDays Remaining: {{ $json.diffDays }}\n\nPlease ensure progress updates are provided before the next review.\n\n{{ $now.format('dd/MM/yyyy') }}\n\nRegards,\nEngineering Operations",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -112
+      ],
+      "id": "c2eb3e58-b338-4934-8501-f4e788d7a139",
+      "name": "Send Individual Mail",
+      "webhookId": "dd87d56c-484e-48c1-aed4-56e811a51053",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "laIVS0X7IkCJYbas",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst todayStr = new Date().toLocaleDateString('en-GB');\n\nlet summaryText = `Dear Efe,\\n\\n`;\n\nsummaryText += `Please find below the Engineering Daily Operational Review action items for ${todayStr}.\\n\\n`;\n\nconst tasksByOwner = {};\n\nitems.forEach(item => {\n  const owner = item.json.Owner || 'Unassigned';\n\n  if (!tasksByOwner[owner]) {\n    tasksByOwner[owner] = [];\n  }\n\n  tasksByOwner[owner].push(item.json);\n});\n\n\nfor (const owner in tasksByOwner) {\n\n  summaryText += `${owner}\\n`;\n  summaryText += `--------------------\\n`;\n\n  tasksByOwner[owner].forEach(task => {\n\n    summaryText += `• ${task.Task}\\n`;\n    summaryText += `Deadline: ${task.Deadline}\\n\\n`;\n\n  });\n\n  summaryText += `\\n`;\n\n}\n\n\nsummaryText += `Please review and follow up on pending actions during the next operational review.\\n\\n`;\n\nsummaryText += `Regards,\\nEngineering Operations`;\n\n\nreturn [{\n  json: {\n    summaryText,\n    managerEmail: \"giwamodupe@outlook.com\",\n    managerWhatsApp: \"whatsapp:+2347064018988\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        160
+      ],
+      "id": "5724a78e-415f-4277-88e5-da857a2ac4c6",
+      "name": "Format Daily Summary"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0fbebb6b-8d36-4aa6-bc13-4bf91958ed2b",
+              "name": "managerEmail",
+              "value": "giwamodupe@outlook.com",
+              "type": "string"
+            },
+            {
+              "id": "cb909341-2112-447e-8d84-9f99621022d1",
+              "name": "managerPhone",
+              "value": "=+2347064018988",
+              "type": "number"
+            },
+            {
+              "id": "1ea33831-8048-425e-9695-6f1d155aaad3",
+              "name": "managerSubject",
+              "value": "=Full Engineering Review Board Summary - Today, {{ $now.format('dd/MM/yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "d3ecbe9f-e6c8-477f-b20c-8ffe34f11359",
+              "name": "managerText",
+              "value": "={{ $json.summaryText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        512,
+        160
+      ],
+      "id": "f42a9f91-da99-4409-9c3d-00e9fe1b0c30",
+      "name": "Prepare Summary Fields"
+    },
+    {
+      "parameters": {
+        "toRecipients": "={{ $('Format Daily Summary').item.json.managerEmail }}",
+        "subject": "={{ $json.managerSubject }}",
+        "bodyContent": "={{ $json.managerText }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        160
+      ],
+      "id": "d17c42b6-d989-4378-a30e-6fa95326bd81",
+      "name": "Send Team Summary Email",
+      "webhookId": "b6b48cb3-f2cc-46e2-a10f-60ebcd2474c4",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "laIVS0X7IkCJYbas",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nconst items = $input.all();\nconst overdueTasks = [];\nconst employeeEmailsToCc = new Set();\n\nconst managerEmail = \"giwamodupe@outlook.com\";     // Replace with Efe's email\nconst managerWhatsApp = \"2348044444444\";   // Replace with Efe's WhatsApp number\n\n// Robust date parser for DD-MMM-YYYY or YYYY-MM-DD\nfunction parseDeadline(dateStr) {\n  if (!dateStr) return null;\n  if (typeof dateStr === 'string' && dateStr.includes('-')) {\n    const parts = dateStr.split('-');\n    if (parts.length === 3 && isNaN(parts[1])) {\n      const months = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };\n      const day = parseInt(parts[0], 10);\n      const month = months[parts[1].toLowerCase()];\n      const year = parseInt(parts[2], 10);\n      return new Date(year, month, day);\n    }\n  }\n  return new Date(dateStr);\n}\n\nitems.forEach(item => {\n  const row = item.json;\n  \n  // Check status (flexible case matching)\n  const statusVal = row.Status || row.status || '';\n  if (statusVal.toLowerCase() !== 'open') return;\n\n  const rawDeadline = row.Deadline || row.deadline;\n  const deadline = parseDeadline(rawDeadline);\n  \n  if (!deadline || isNaN(deadline.getTime())) return;\n\n  deadline.setHours(0, 0, 0, 0);\n\n  const diffTime = deadline - today;\n  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n\n  // Filter: Overdue by 1 day or more (diffDays < 0)\n  if (diffDays < 0) {\n    const daysOverdue = Math.abs(diffDays);\n    const ownerEmail = row.Email || row.email || '';\n    \n    overdueTasks.push({\n      taskId: row['Task ID'] || row['taskId'] || row['Task ID '] || 'N/A',\n      task: row.Task || row.task,\n      owner: row.Owner || row.owner || 'Unassigned',\n      email: ownerEmail,\n      whatsapp: row.WhatsApp || row.whatsapp,\n      deadline: rawDeadline,\n      daysOverdue: daysOverdue\n    });\n\n    if (ownerEmail) {\n      employeeEmailsToCc.add(ownerEmail);\n    }\n  }\n});\n\n// If no items are overdue, return empty array (stops workflow gracefully)\nif (overdueTasks.length === 0) {\n  return [];\n}\n\nconst todayStr = today.toLocaleDateString('en-GB');\nconst ccEmailsString = Array.from(employeeEmailsToCc).join(';');\n\nlet alertText = `🚨 DAILY OVERDUE ESCALATION REPORT - ${todayStr}\\n\\nDear Efe,\\n\\nThe following open action item(s) are overdue by 1 day or more:\\n\\n`;\nlet alertHtml = `<h2>🚨 Daily Overdue Escalation Report (${todayStr})</h2><p>Dear Efe,</p><p>The following open action item(s) are overdue by 1 day or more:</p><ul>`;\n\noverdueTasks.forEach((t, idx) => {\n  alertText += `${idx + 1}. [${t.taskId}] ${t.task}\\n   • Owner: ${t.owner}\\n   • Deadline: ${t.deadline}\\n   • Status: ⚠️ Overdue by ${t.daysOverdue} day(s)\\n\\n`;\n  \n  alertHtml += `<li><strong>[${t.taskId}] ${t.task}</strong><br/>`;\n  alertHtml += `<strong>Owner:</strong> ${t.owner}<br/>`;\n  alertHtml += `<strong>Original Deadline:</strong> ${t.deadline}<br/>`;\n  alertHtml += `<span style=\"color:red;\">⚠️ Overdue by ${t.daysOverdue} day(s)</span></li><br/>`;\n});\n\nalertText += `Cc: ${Array.from(employeeEmailsToCc).join(', ')}\\n\\nPlease resolve or update these items.`;\nalertHtml += `</ul><p><em>This email has been CC'd to the responsible team members listed above.</em></p>`;\n\nreturn [\n  {\n    json: {\n      managerEmail: managerEmail,\n      ccEmails: ccEmailsString,\n      managerWhatsApp: managerWhatsApp,\n      overdueCount: overdueTasks.length,\n      subject: `ESCALATION ALERT: ${overdueTasks.length} Overdue Action Item(s)`,\n      alertText: alertText,\n      alertHtml: alertHtml\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        432
+      ],
+      "id": "68535ebf-c0cf-4a16-9630-023a567cb3ed",
+      "name": "Calculate Escalations",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "toRecipients": "={{ $json.managerEmail }}",
+        "subject": "={{ $json.subject }}",
+        "bodyContent": "={{ $json.alertText }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        736,
+        432
+      ],
+      "id": "0f914f7d-1faf-4c8a-a50b-c8ef857069cf",
+      "name": "Send Escalation to Engineering Manager",
+      "webhookId": "69d88d11-2ad2-4597-b701-12afc196fe5b",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "laIVS0X7IkCJYbas",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## INDIVIDUAL ENGINEER REMINDERS",
+        "height": 224,
+        "width": 848,
+        "color": "#008080"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        128,
+        -176
+      ],
+      "id": "8397d591-e444-4d50-95ed-ab654db5041c",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## DAILY ENGINEERING REVIEW BOARD SUMMARY",
+        "height": 240,
+        "width": 848,
+        "color": "#008080"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        128,
+        96
+      ],
+      "id": "2565c046-5651-4513-82a8-c34f08e3b774",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## MANAGEMENT ESCALATION ALERT SYSTEM",
+        "height": 240,
+        "width": 848,
+        "color": "#008080"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        128,
+        384
+      ],
+      "id": "00db7ffa-dc73-413c-a508-12d7eab7733e",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        []
+      ]
+    },
+    "Fetch Active Tasks": {
+      "main": [
+        [
+          {
+            "node": "Filter Open Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Open Actions": {
+      "main": [
+        [
+          {
+            "node": "Format Daily Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Calculate Escalations",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Group Tasks by Engineer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group Tasks by Engineer": {
+      "main": [
+        [
+          {
+            "node": "Send Individual Mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Individual Mail": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Summary Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Summary Fields": {
+      "main": [
+        [
+          {
+            "node": "Send Team Summary Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Team Summary Email": {
+      "main": [
+        []
+      ]
+    },
+    "Calculate Escalations": {
+      "main": [
+        [
+          {
+            "node": "Send Escalation to Engineering Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9ae8c959-042c-42be-bf39-c67a4ac5421f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a8a414fd9a4ef5c95a85a1d286a2b877fa3e074544c35c7e49eefd4eb1dcd9dd"
+  },
+  "nodeGroups": [],
+  "id": "Up7aaix5wocIdB5j",
+  "tags": []
+}
