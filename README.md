@@ -36,7 +36,7 @@ The automation was designed to:
 
                 ┌─────────────────────────┐
                 │   Schedule Trigger      │
-                │  (9:30 AM / 2:30 PM)    │
+                │  (10:00 AM)    │
                 └────────────┬────────────┘
                              │
                              ▼
@@ -84,7 +84,7 @@ The automation was designed to:
 
 The workflow runs automatically on weekdays:
 
-- 9:30 AM → Post daily operational review action distribution
+- 10:00 AM → Post daily operational review action distribution
 
 ---
 
@@ -121,15 +121,6 @@ Each engineer receives a personalized message containing:
 - Deadline dates
 - Remaining days
 - Follow-up instructions
-
-Example:
-
-Dear Henry,
-
-Your Engineering action items from today’s operational review:
-	1.	Replace conveyor belt
-Deadline: 25-Jul-2026
-Status: 2 days remaining
 
 ---
 
